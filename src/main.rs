@@ -193,7 +193,7 @@ impl Default for UserSettings {
             pico_address: None,
             gui_addr: [192, 168, 0, 103],
             bot_update_period: 10,
-            go_server_address: Some("192.168.0.102:3002".to_string()),
+            go_server_address: None,
             robot: Robot::default(),
             sensors_from_robot: true,
             motors_ignore_phys_angle: false,
@@ -220,7 +220,7 @@ impl Default for UserSettings {
             replay_save_sensors: false,
             replay_save_targets: false,
 
-            enable_pf: true,
+            enable_pf: false,
             pf_total_points: 50000,
             pf_gui_points: 10000,
             pf_chance_near_other: 0.99,
@@ -318,7 +318,7 @@ fn main() {
                     .after(update_physics_info)
                     .after(update_game),
                 update_delayed_cv,
-                update_game_state_with_pf
+                update_game_state_with_pf,
             ),
         )
         .run();
