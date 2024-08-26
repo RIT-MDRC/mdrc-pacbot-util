@@ -185,7 +185,6 @@ pub fn reconnect_pico(
     }
     if network_data.pico.is_none() {
         if let Some(pico_address) = &settings.pico_address {
-            info!("?");
             if pico_address.is_empty() {
                 return;
             }
@@ -195,7 +194,6 @@ pub fn reconnect_pico(
                 info!("{:?}", e);
             }
             network_data.pico = try_conn.ok();
-            info!("network ok");
             if let Some(pico) = &mut network_data.pico {
                 if let Err(e) = pico.tx_socket.set_nonblocking(true) {
                     info!("{:?}", e);

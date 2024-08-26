@@ -102,7 +102,7 @@ impl<'a> TabViewer<'a> {
                 .settings
                 .pico_address
                 .clone()
-                .unwrap_or("192.168.4.16:20002".to_string());
+                .unwrap_or("192.168.4.209:20002".to_string());
             ui.text_edit_singleline(&mut pico_addr);
             self.settings.pico_address = Some(pico_addr);
         }
