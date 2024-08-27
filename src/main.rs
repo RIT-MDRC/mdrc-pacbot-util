@@ -189,7 +189,7 @@ impl Default for UserSettings {
     fn default() -> Self {
         Self {
             mode: AppMode::Recording,
-            high_level_strategy: HighLevelStrategy::Manual,
+            high_level_strategy: HighLevelStrategy::ReinforcementLearning,
             pico_address: None,
             gui_addr: [192, 168, 4, 17],
             bot_update_period: 10,
@@ -220,12 +220,12 @@ impl Default for UserSettings {
             replay_save_sensors: false,
             replay_save_targets: false,
 
-            enable_pf: false,
-            pf_total_points: 50000,
+            enable_pf: true,
+            pf_total_points: 10000,
             pf_gui_points: 10000,
             pf_chance_near_other: 0.99,
-            pf_avg_kidnaps_per_sec: 0.1,
-            pf_cv_error_std: 1.0, // default 5.0
+            pf_avg_kidnaps_per_sec: 10.0,
+            pf_cv_error_std: 7.0, // default 5.0
             pf_sensor_error_std: 1.0,
 
             pf_translation_limit: 0.3,
@@ -233,7 +233,7 @@ impl Default for UserSettings {
 
             pf_simulated_translation_noise: 0.01,
             pf_simulated_rotation_noise: 0.02,
-            pf_generic_noise: 1.0,
+            pf_generic_noise: 2.0,
         }
     }
 }
