@@ -11,6 +11,7 @@ use log::{error, info};
 use crate::sockets::{Destination, Incoming, Outgoing};
 
 pub const PACKET_SIZE: usize = 4096;
+pub const PACKET_PER_BURST: usize = 100;
 
 pub struct OverTheAirProgramming {
     robots: [OverTheAirRobot; NUM_ROBOT_NAMES],
@@ -103,8 +104,13 @@ impl OverTheAirRobot {
         new: OverTheAirStep,
         success: Option<bool>,
         status: &mut ServerStatus,
+        clear_last_update: bool,
     ) {
-        self.last_update = None;
+        if clear_last_update {
+            self.last_update = None;
+        } else {
+            self.last_update = Some(Instant::now());
+        }
         if let Some(last) = status.robots[self.name as usize].ota_completed.last_mut() {
             last.step = new;
             last.since_beginning = self.start.elapsed();
@@ -131,28 +137,37 @@ impl OverTheAirProgramming {
     }
 
     async fn send_firmware_part(&mut self, to: RobotName, offset: usize) {
-        self.tx
-            .send((
-                Destination::Robot(to),
-                Outgoing::ToRobot(ServerToRobotMessage::FirmwareWritePart {
-                    offset,
-                    len: PACKET_SIZE,
-                }),
-            ))
-            .await
-            .unwrap();
-        let next_packet_len = if offset + PACKET_SIZE > self.binary.len() {
-            self.binary.len() - offset
-        } else {
-            PACKET_SIZE
-        };
-        self.tx
-            .send((
-                Destination::Robot(to),
-                Outgoing::RawBytes(self.binary[offset..offset + next_packet_len].to_vec()),
-            ))
-            .await
-            .unwrap();
+        for burst_count in 0..PACKET_PER_BURST {
+            let offset = offset + PACKET_SIZE * burst_count;
+            if offset >= self.binary.len() {
+                break;
+            }
+            self.tx
+                .send((
+                    Destination::Robot(to),
+                    Outgoing::ToRobot(ServerToRobotMessage::FirmwareWritePart {
+                        offset,
+                        len: PACKET_SIZE,
+                    }),
+                ))
+                .await
+                .unwrap();
+            let next_packet_len = if offset + PACKET_SIZE > self.binary.len() {
+                self.binary.len() - offset
+            } else {
+                PACKET_SIZE
+            };
+            if next_packet_len == 0 {
+                break;
+            }
+            self.tx
+                .send((
+                    Destination::Robot(to),
+                    Outgoing::RawBytes(self.binary[offset..offset + next_packet_len].to_vec()),
+                ))
+                .await
+                .unwrap();
+        }
     }
 
     async fn cancel_update(&mut self, name: RobotName, status: &mut ServerStatus) {
@@ -186,6 +201,8 @@ impl OverTheAirProgramming {
                         Some(ServerToRobotMessage::ReadyToStartUpdate)
                     }
                     OverTheAirStep::DataTransfer { received, .. } => {
+                        status.robots[name as usize].ota_burst_end =
+                            received + PACKET_PER_BURST * PACKET_SIZE;
                         self.send_firmware_part(name, received).await;
                         None
                     }
@@ -277,12 +294,11 @@ impl OverTheAirProgramming {
                         status.robots[*name as usize].ota_current
                     {
                         if *offset != received {
-                            self.robots[*name as usize].update_failed(status);
                             error!(
                                 "Robot received bytes at the wrong offset: {} != {}",
                                 *offset, received
                             );
-                            self.cancel_update(*name, status).await;
+                            // this will be retried soon
                         } else {
                             // is there another firmware part?
                             if *offset + *len < total {
@@ -293,6 +309,7 @@ impl OverTheAirProgramming {
                                     },
                                     None,
                                     status,
+                                    status.robots[*name as usize].ota_burst_end == *offset + *len,
                                 );
                                 // send next packet
                                 self.tick(status).await;
@@ -305,6 +322,7 @@ impl OverTheAirProgramming {
                                     },
                                     Some(true),
                                     status,
+                                    true,
                                 );
                                 self.robots[*name as usize].update_completed(status);
                                 self.tick(status).await;

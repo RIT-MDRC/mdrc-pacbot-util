@@ -51,6 +51,7 @@ pub struct RobotStatus {
     pub ping: Option<Duration>,
 
     pub ota_current: OverTheAirStep,
+    pub ota_burst_end: usize,
     pub ota_completed: Vec<OverTheAirStepCompletion>,
 
     pub last_motor_status: (Duration, MotorControlStatus),
@@ -74,6 +75,7 @@ impl RobotStatus {
             ping: None,
 
             ota_current: OverTheAirStep::GuiRequest,
+            ota_burst_end: 0,
             ota_completed: vec![],
 
             last_motor_status: Default::default(),
